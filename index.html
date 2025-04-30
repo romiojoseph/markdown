@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Markdown Editor for Web</title>
+    <meta name="description"
+        content="Write and style markdown without typing any syntax. Your work auto-saves in the browser. Import and export files anytime. No login, no trackers.">
+    <meta property="og:image" content="assets/social-image.png">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+    <meta property="og:title" content="Simple Markdown Editor for Web">
+    <meta property="og:description"
+        content="Write and style markdown without typing any syntax. Your work auto-saves in the browser. Import and export files anytime. No login, no trackers.">
+    <meta property="og:image" content="assets/social-image.png">
+    <meta property="og:url" content="https://romiojoseph.github.io/markdown/">
+    <meta property="og:type" content="website">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+    <!-- Phosphor Icons CDN -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Marked.js CDN (Markdown to HTML) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Turndown.js CDN (HTML to Markdown) -->
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+
+    <meta name="robots" content="index, follow">
+</head>
+
+<body>
+    <!-- Update Stats Display Area -->
+    <div class="stats-container">
+        <div id="stats-display">
+            <span id="word-count">0 words</span> | <span id="char-count">0 characters</span>
+        </div>
+        <div id="last-modified">
+            Last modified: <span id="modified-time">Never</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="editor" contenteditable="true" spellcheck="false">
+            <!-- Content will be loaded here -->
+        </div>
+
+        <div id="save-indicator" class="hidden">
+            <i class="ph ph-check-circle"></i> Saved
+        </div>
+
+        <!-- Find & Replace Popover -->
+        <div class="find-replace-container hidden">
+            <div class="find-replace-header">
+                <h3>Find & Replace</h3>
+                <button type="button" class="find-replace-close" title="Close">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="find-replace-group">
+                <input type="text" id="find-input" placeholder="Find" aria-label="Find text">
+                <div class="find-controls">
+                    <button type="button" id="find-prev" title="Previous">
+                        <i class="ph ph-caret-up"></i>
+                    </button>
+                    <button type="button" id="find-next" title="Next">
+                        <i class="ph ph-caret-down"></i>
+                    </button>
+                    <span class="find-count"></span>
+                </div>
+            </div>
+            <div class="find-replace-group">
+                <input type="text" id="replace-input" placeholder="Replace with" aria-label="Replace with">
+                <div class="find-controls">
+                    <button type="button" id="replace-btn">Replace</button>
+                    <button type="button" id="replace-all-btn">Replace All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toolbar sticky-toolbar">
+        <button type="button" data-command="undo" title="Undo (Ctrl+Z)"><i
+                class="ph ph-arrow-counter-clockwise"></i></button>
+        <button type="button" data-command="redo" title="Redo (Ctrl+Y)"><i class="ph ph-arrow-clockwise"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="findReplace" title="Find & Replace (Ctrl+F)"><i
+                class="ph ph-magnifying-glass"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="h1" data-block-format="H1" title="Heading 1"><i
+                class="ph ph-text-h-one"></i></button>
+        <button type="button" data-command="h2" data-block-format="H2" title="Heading 2"><i
+                class="ph ph-text-h-two"></i></button>
+        <button type="button" data-command="h3" data-block-format="H3" title="Heading 3"><i
+                class="ph ph-text-h-three"></i></button>
+        <button type="button" data-command="h4" data-block-format="H4" title="Heading 4"><i
+                class="ph ph-text-h-four"></i></button>
+        <button type="button" data-command="h5" data-block-format="H5" title="Heading 5"><i
+                class="ph ph-text-h-five"></i></button>
+        <button type="button" data-command="h6" data-block-format="H6" title="Heading 6"><i
+                class="ph ph-text-h-six"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="bold" title="Bold (Ctrl+B)"><i class="ph ph-text-b"></i></button>
+        <button type="button" data-command="italic" title="Italic (Ctrl+I)"><i class="ph ph-text-italic"></i></button>
+        <button type="button" data-command="strikethrough" title="Strikethrough"><i
+                class="ph ph-text-strikethrough"></i></button>
+        <button type="button" data-command="highlight" data-inline-tag="MARK" title="Highlight"><i
+                class="ph ph-highlighter-circle"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="blockquote" data-block-format="BLOCKQUOTE" title="Blockquote"><i
+                class="ph ph-quotes"></i></button>
+        <button type="button" data-command="unorderedList" title="Bulleted List"><i
+                class="ph ph-list-bullets"></i></button>
+        <button type="button" data-command="orderedList" title="Numbered List"><i
+                class="ph ph-list-numbers"></i></button>
+        <button type="button" data-command="horizontalRule" title="Horizontal Rule"><i class="ph ph-minus"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="createTable" title="Insert Table"><i class="ph ph-table"></i></button>
+        <button type="button" data-command="createLink" title="Insert Link"><i class="ph ph-link"></i></button>
+        <button type="button" data-command="unlink" title="Remove Link"><i class="ph ph-link-break"></i></button>
+        <button type="button" data-command="insertImage" title="Insert Image"><i class="ph ph-image"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="inlineCode" data-inline-tag="CODE" title="Inline Code"><i
+                class="ph ph-code"></i></button>
+        <button type="button" data-command="codeBlock" data-block-format="PRE" title="Code Block"><i
+                class="ph ph-code-block"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" data-command="clearFormatting" title="Clear Formatting"><i
+                class="ph ph-eraser"></i></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" id="import-btn" title="Import Markdown (.md)"><i class="ph ph-upload-simple"></i></button>
+        <button type="button" id="export-btn" title="Export Markdown (.md)"><i
+                class="ph ph-download-simple"></i></button>
+    </div>
+
+    <!-- Modals (Link, Image, Table) -->
+    <div id="modal-overlay" class="hidden"></div>
+    <div id="link-modal" class="modal hidden">
+        <h3>Insert Link</h3>
+        <label for="link-url">URL:</label>
+        <input type="url" id="link-url" placeholder="https://example.com" required>
+        <div class="modal-actions">
+            <button type="button" id="link-cancel">Cancel</button>
+            <button type="button" id="link-insert">Insert</button>
+        </div>
+    </div>
+    <div id="image-modal" class="modal hidden">
+        <h3>Insert Image</h3>
+        <label for="image-url">Image URL:</label>
+        <input type="url" id="image-url" placeholder="https://example.com/image.jpg" required>
+        <div class="modal-actions">
+            <button type="button" id="image-cancel">Cancel</button>
+            <button type="button" id="image-insert">Insert</button>
+        </div>
+    </div>
+    <div id="table-modal" class="modal hidden">
+        <h3>Insert Table</h3>
+        <label for="table-rows">Rows:</label>
+        <input type="number" id="table-rows" min="1" value="3" required>
+        <label for="table-cols">Columns:</label>
+        <input type="number" id="table-cols" min="1" value="3" required>
+        <div class="modal-actions">
+            <button type="button" id="table-cancel">Cancel</button>
+            <button type="button" id="table-create">Create</button>
+        </div>
+    </div>
+
+    <!-- Hidden input for file import -->
+    <input type="file" id="import-file" accept=".md,.txt" style="display: none;">
+
+    <script src="script.js"></script>
+</body>
+
+</html>
