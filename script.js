@@ -437,91 +437,48 @@ const FindReplace = (function () {
 
 document.addEventListener('DOMContentLoaded', () => {
     const editor = document.getElementById('editor');
-    const toolbar = document.querySelector('.toolbar');
     const saveIndicator = document.getElementById('save-indicator');
-    const importBtn = document.getElementById('import-btn');
-    const exportBtn = document.getElementById('export-btn');
-    const importFileInput = document.getElementById('import-file');
-    const wordCountSpan = document.getElementById('word-count');
-    const charCountSpan = document.getElementById('char-count');
-    const modifiedTimeSpan = document.getElementById('modified-time');
-
     const modalOverlay = document.getElementById('modal-overlay');
     const linkModal = document.getElementById('link-modal');
     const imageModal = document.getElementById('image-modal');
     const tableModal = document.getElementById('table-modal');
+    const importFileInput = document.getElementById('import-file');
+    const importButton = document.getElementById('import-btn');
+    const exportButton = document.getElementById('export-btn');
+    const linkUrlInput = document.getElementById('link-url');
+    const imageUrlInput = document.getElementById('image-url');
+    const tableRowsInput = document.getElementById('table-rows');
+    const tableColsInput = document.getElementById('table-cols');
+    const wordCountElement = document.getElementById('word-count');
+    const charCountElement = document.getElementById('char-count');
+    const modifiedTimeElement = document.getElementById('modified-time');
+    const statsContainer = document.querySelector('.stats-container');
+    const toolbar = document.querySelector('.toolbar');
+
+    // Storage keys
+    const STORAGE_KEY = 'simple-markdown-editor-content';
+    const STORAGE_KEY_LAST_MODIFIED = 'simple-markdown-editor-last-modified';
+    const STORAGE_KEY_VIEW_MODE = 'simple-markdown-editor-view-mode';
+
+    // App state
+    let lastSavedContent = '';
+    let saveTimeout = null;
+    let currentSelectionRange = null;
+    let viewMode = localStorage.getItem(STORAGE_KEY_VIEW_MODE) || 'live'; // 'live' or 'markdown'
+    const SAVE_DELAY = 1500;
 
     const turndownService = new TurndownService({
         headingStyle: 'atx',
-        hr: '---',
-        bulletListMarker: '*',
         codeBlockStyle: 'fenced',
-        emDelimiter: '*',
+        emDelimiter: '_',
+        bulletListMarker: '-',
+        hr: '---',
+        linkStyle: 'inlined'
     });
 
     turndownService.addRule('strikethrough', {
         filter: ['del', 's', 'strike'],
         replacement: content => '~~' + content + '~~',
-    });
-    turndownService.addRule('highlight', {
-        filter: ['mark'],
-        replacement: content => '==' + content + '==',
-    });
-    turndownService.keep(['table', 'th', 'td', 'tr', 'thead', 'tbody', 'tfoot']);
-    turndownService.addRule('tableCell', {
-        filter: ['th', 'td'],
-        replacement: function (content, node) {
-            const processedContent = content.trim().replace(/\|/g, '\\|');
-            return ' ' + processedContent + ' |';
-        }
-    });
-    turndownService.addRule('tableRow', {
-        filter: 'tr',
-        replacement: function (content, node) {
-            let borderCells = '';
-            const alignMap = { left: ':--', right: '--:', center: ':-:' };
-            const isHeaderRow = node.parentNode.nodeName === 'THEAD' || (node.parentNode.nodeName === 'TBODY' && node.parentNode.previousElementSibling === null && node === node.parentNode.firstElementChild) || (node.parentNode.nodeName === 'TABLE' && node === node.firstElementChild);
-            if (isHeaderRow) {
-                Array.from(node.children).forEach(childNode => {
-                    if (childNode.nodeType === Node.ELEMENT_NODE && (childNode.nodeName === 'TH' || childNode.nodeName === 'TD')) {
-                        let align = childNode.getAttribute('align') || getComputedStyle(childNode).textAlign || 'left';
-                        if (align === 'start' || align === 'justify') align = 'left';
-                        if (align === 'end') align = 'right';
-                        borderCells += '|' + (alignMap[align] || '---');
-                    }
-                });
-                if (borderCells) borderCells += '|';
-            }
-            const rowContent = content.replace(/^ /, '').replace(/ \| /g, '|').replace(/ \|$/, '|');
-            return rowContent + (borderCells ? '\n' + borderCells : '') + '\n';
-        }
-    });
-    turndownService.addRule('table', {
-        filter: 'table',
-        replacement: function (content, node) {
-            content = content.replace(/\n{3,}/g, '\n\n');
-            content = content.trim();
-            return '\n\n' + content + '\n\n';
-        }
-    });
-    turndownService.addRule('tableSection', {
-        filter: ['thead', 'tbody', 'tfoot'],
-        replacement: function (content) {
-            return content.trim();
-        }
-    });
-    turndownService.addRule('paragraphInTableCell', {
-        filter: function (node) {
-            let parent = node.parentNode;
-            while (parent && parent !== editor) {
-                if (parent.nodeName === 'TD' || parent.nodeName === 'TH') return node.nodeName === 'P';
-                parent = parent.parentNode;
-            }
-            return false;
-        },
-        replacement: function (content) {
-            return content;
-        }
     });
 
     marked.use({
@@ -535,9 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    let saveTimeout;
-    const SAVE_DELAY = 1500;
-    let currentSelectionRange = null;
 
     function triggerSave() {
         clearTimeout(saveTimeout);
@@ -1248,14 +1202,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadMarkdown(markdown) {
         try {
-            const processedMarkdown = preprocessMarkdownForLoading(markdown || '');
-            const htmlContent = marked.parse(processedMarkdown);
-            editor.innerHTML = htmlContent;
-            editor.querySelectorAll('pre').forEach(pre => {
-                if (!pre.querySelector('code')) {
-                    pre.innerHTML = `<code>${pre.innerHTML.replace(/</g, '<').replace(/>/g, '>')}</code>`;
-                }
-            });
+            if (viewMode === 'markdown') {
+                // In markdown mode, just show the raw markdown in a single editable area
+                // We'll use a textarea-like div instead of pre/code to allow normal editing
+                editor.innerHTML = '';
+                editor.setAttribute('data-view-mode', 'markdown');
+                editor.setAttribute('contenteditable', 'true');
+                editor.classList.add('markdown-mode');
+                
+                // Create a div with white-space: pre-wrap to maintain line breaks
+                const markdownDiv = document.createElement('div');
+                markdownDiv.className = 'markdown-content';
+                markdownDiv.textContent = markdown || '';
+                editor.appendChild(markdownDiv);
+            } else {
+                // In live mode, render the markdown as HTML
+                editor.classList.remove('markdown-mode');
+                const processedMarkdown = preprocessMarkdownForLoading(markdown || '');
+                const htmlContent = marked.parse(processedMarkdown);
+                editor.innerHTML = htmlContent;
+                editor.setAttribute('data-view-mode', 'live');
+                editor.setAttribute('contenteditable', 'true');
+                editor.querySelectorAll('pre').forEach(pre => {
+                    if (!pre.querySelector('code')) {
+                        pre.innerHTML = `<code>${pre.innerHTML.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>`;
+                    }
+                });
+            }
             updateCounts();
             updateToolbarState();
         } catch (error) {
@@ -1266,9 +1239,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveContent() {
         try {
-            const markdownContent = convertHtmlToMarkdown();
-            localStorage.setItem('editorContent', markdownContent);
-            localStorage.setItem('lastModified', new Date().toISOString());
+            let markdownContent;
+            if (viewMode === 'markdown') {
+                // In markdown mode, get the raw markdown from the editor
+                const markdownElement = editor.querySelector('.markdown-content');
+                if (markdownElement) {
+                    markdownContent = markdownElement.textContent;
+                } else {
+                    // Fallback to any content in the editor
+                    markdownContent = editor.textContent;
+                }
+            } else {
+                // In live mode, convert HTML to markdown
+                markdownContent = convertHtmlToMarkdown();
+            }
+            localStorage.setItem(STORAGE_KEY, markdownContent);
+            localStorage.setItem(STORAGE_KEY_LAST_MODIFIED, new Date().toISOString());
             showSaveIndicator();
             updateLastModified();
         } catch (error) {
@@ -1278,11 +1264,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadContent() {
         try {
-            const savedMarkdown = localStorage.getItem('editorContent');
+            const savedMarkdown = localStorage.getItem(STORAGE_KEY);
             if (savedMarkdown !== null) {
                 loadMarkdown(savedMarkdown);
             } else {
-                loadMarkdown('# Welcome to Your Markdown Editor!\n\nThis is a simple tool to draft README files and other markdown content. No need to install anything.\n\nYou don’t have to remember markdown syntax. Just select text and pick a style headings, bold, lists, links, everything’s built in. You can close or reload the tab anytime. Your work stays saved in your browser unless the cache is cleared.\n\nYou can also import or export your files when needed.\n\nStart writing your content...');
+                loadMarkdown('# Welcome to Your Markdown Editor!\n\nThis is a simple tool to draft README files and other markdown content. No need to install anything.\n\nYou don’t have to remember markdown syntax. Just select text and pick a style headings, bold, lists, links, everything’s built in. You can close or reload the tab anytime. Your work stays saved in your browser unless the cache is cleared.\n\nYou can also import or export your files when needed. Please note that this tool is not well optimized for mobile devices.\n\nStart writing your content...');
                 saveContent();
             }
         } catch (error) {
@@ -1327,8 +1313,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const characters = text.length;
         const words = text.trim().split(/\s+/).filter(Boolean).length;
 
-        charCountSpan.textContent = `${characters} character${characters !== 1 ? 's' : ''}`;
-        wordCountSpan.textContent = `${words} word${words !== 1 ? 's' : ''}`;
+        charCountElement.textContent = `${characters} character${characters !== 1 ? 's' : ''}`;
+        wordCountElement.textContent = `${words} word${words !== 1 ? 's' : ''}`;
     }
 
     function getSelectedHtml() {
@@ -1365,27 +1351,227 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function updateLastModified() {
-        const lastModifiedISO = localStorage.getItem('lastModified');
+        const lastModifiedISO = localStorage.getItem(STORAGE_KEY_LAST_MODIFIED);
         if (lastModifiedISO) {
             const date = new Date(lastModifiedISO);
             const options = {
                 hour: '2-digit', minute: '2-digit', hour12: true
             };
-            modifiedTimeSpan.textContent = `${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} at ${date.toLocaleTimeString('en-US', options)}`;
+            modifiedTimeElement.textContent = `${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} at ${date.toLocaleTimeString('en-US', options)}`;
         } else {
-            modifiedTimeSpan.textContent = "Not saved yet";
+            modifiedTimeElement.textContent = "Not saved yet";
         }
     }
 
-
+    // Function to toggle between markdown and live view
+    function toggleViewMode() {
+        // Toggle the view mode
+        viewMode = viewMode === 'live' ? 'markdown' : 'live';
+        
+        // Save the preference
+        localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
+        
+        // Update the toggle button icon
+        updateViewModeButton();
+        
+        // Reload the content in the new view mode
+        const content = localStorage.getItem(STORAGE_KEY);
+        if (content) {
+            loadMarkdown(content);
+        }
+    }
+    
+    // Function to update the view mode button based on current mode
+    function updateViewModeButton() {
+        const viewModeButton = document.querySelector('button[data-command="toggleViewMode"]');
+        if (viewModeButton) {
+            const icon = viewModeButton.querySelector('i');
+            if (viewMode === 'markdown') {
+                icon.className = 'ph ph-monitor';
+                viewModeButton.title = 'Switch to Live View';
+                viewModeButton.classList.add('active');
+            } else {
+                icon.className = 'ph ph-eye';
+                viewModeButton.title = 'Switch to Markdown View';
+                viewModeButton.classList.remove('active');
+            }
+        }
+    }
+    
+    // Function to show the clear data confirmation popover
+    function showClearDataPopover(event) {
+        event.stopPropagation(); // Prevent event bubbling
+        
+        // Create popover if it doesn't exist
+        let clearPopover = document.getElementById('clear-data-popover');
+        
+        if (clearPopover) {
+            // If it exists but is hidden, show it
+            if (clearPopover.classList.contains('hidden')) {
+                positionPopover(clearPopover, event);
+                clearPopover.classList.remove('hidden');
+            } else {
+                clearPopover.classList.add('hidden');
+            }
+            return;
+        }
+        
+        // Create the popover
+        clearPopover = document.createElement('div');
+        clearPopover.id = 'clear-data-popover';
+        clearPopover.className = 'clear-data-popover';
+        clearPopover.innerHTML = `
+            <div class="clear-data-content">
+                <h3>Clear All Data</h3>
+                <p>This will reset everything and open a blank editor. This action cannot be undone.</p>
+                <div class="clear-data-actions">
+                    <button type="button" id="clear-data-cancel">Cancel</button>
+                    <button type="button" id="clear-data-confirm">Clear All Data</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(clearPopover);
+        
+        // Position the popover near the click position
+        positionPopover(clearPopover, event);
+        
+        // Add event listeners for the buttons
+        const cancelButton = document.getElementById('clear-data-cancel');
+        const confirmButton = document.getElementById('clear-data-confirm');
+        
+        // Remove any existing event listeners
+        const newCancelButton = cancelButton.cloneNode(true);
+        const newConfirmButton = confirmButton.cloneNode(true);
+        cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+        confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+        
+        // Add new event listeners
+        newCancelButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearPopover.classList.add('hidden');
+        });
+        
+        newConfirmButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Clear all stored data
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(STORAGE_KEY_LAST_MODIFIED);
+            
+            // Reset the editor
+            if (viewMode === 'markdown') {
+                const markdownDiv = document.createElement('div');
+                markdownDiv.className = 'markdown-content';
+                editor.innerHTML = '';
+                editor.appendChild(markdownDiv);
+            } else {
+                editor.innerHTML = '';
+            }
+            
+            updateCounts();
+            updateLastModified();
+            
+            // Hide the popover
+            clearPopover.classList.add('hidden');
+            
+            // Show confirmation
+            showSaveIndicator();
+        });
+        
+        // Function to position the popover near the click
+        function positionPopover(popover, event) {
+            const clickX = event.clientX;
+            const clickY = event.clientY;
+            
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Set initial position near the click
+            popover.style.left = `${clickX}px`;
+            popover.style.top = `${clickY + 20}px`; // 20px below the click
+            
+            // Make sure the popover is fully visible
+            setTimeout(() => {
+                const popoverRect = popover.getBoundingClientRect();
+                
+                // Adjust horizontal position if needed
+                if (popoverRect.right > viewportWidth) {
+                    popover.style.left = `${viewportWidth - popoverRect.width - 10}px`;
+                }
+                if (popoverRect.left < 0) {
+                    popover.style.left = '10px';
+                }
+                
+                // Adjust vertical position if needed
+                if (popoverRect.bottom > viewportHeight) {
+                    popover.style.top = `${clickY - popoverRect.height - 10}px`;
+                }
+                if (popoverRect.top < 0) {
+                    popover.style.top = '10px';
+                }
+            }, 0);
+        }
+        
+        // Close popover when clicking outside
+        const handleOutsideClick = (e) => {
+            if (clearPopover && !clearPopover.contains(e.target) && e.target !== statsContainer) {
+                clearPopover.classList.add('hidden');
+                document.removeEventListener('click', handleOutsideClick);
+            }
+        };
+        
+        // Add the event listener after a short delay to prevent immediate closing
+        setTimeout(() => {
+            document.addEventListener('click', handleOutsideClick);
+        }, 100);
+    }
+    
+    // Add event listener to stats container for clear data option
+    statsContainer.addEventListener('click', showClearDataPopover);
+    
+    // Add event listener for keydown in markdown mode to handle Enter key
+    editor.addEventListener('keydown', function(e) {
+        if (viewMode === 'markdown' && e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            
+            // Get the markdown content element
+            const markdownContent = editor.querySelector('.markdown-content');
+            if (!markdownContent) return;
+            
+            // Get current selection
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            
+            const range = selection.getRangeAt(0);
+            
+            // Insert a newline character at the current cursor position
+            const newlineNode = document.createTextNode('\n');
+            range.insertNode(newlineNode);
+            
+            // Move the cursor after the inserted newline
+            range.setStartAfter(newlineNode);
+            range.setEndAfter(newlineNode);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            // Trigger content save
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveContent, SAVE_DELAY);
+        }
+    });
+    
     loadContent();
 
     if (!FindReplace.init(editor, triggerSave)) {
-        console.error("Find & Replace module failed to initialize.");
+        console.error("Failed to initialize Find & Replace module");
         const frButton = toolbar.querySelector('button[data-command="findReplace"]');
         if (frButton) frButton.disabled = true;
     }
-
+    
+    // Initialize view mode
+    updateViewModeButton();
+    
     toolbar.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (!button) return;
@@ -1403,7 +1589,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 FindReplace.close();
             }
             saveSelection();
-            handleCommand(command);
+            if (command === 'toggleViewMode') {
+                toggleViewMode();
+            } else if (viewMode === 'markdown' && !['findReplace', 'toggleViewMode'].includes(command)) {
+                // In markdown mode, only allow find/replace and view toggle
+                alert('Please switch to Live View to use formatting tools');
+            } else {
+                handleCommand(command);
+            }
         }
     });
 
@@ -1411,6 +1604,58 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(saveContent, SAVE_DELAY);
         updateCounts();
+    });
+
+    // Handle paste events to properly process markdown text
+    editor.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const clipboardData = e.clipboardData || window.clipboardData;
+        const pastedData = clipboardData.getData('text');
+        const selection = window.getSelection();
+
+        if (viewMode === 'markdown') {
+            // In markdown mode, just insert the text as is
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                const textNode = document.createTextNode(pastedData);
+                range.insertNode(textNode);
+                range.setStartAfter(textNode);
+                range.setEndAfter(textNode);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        } else {
+            // In live mode, check if it's markdown and render it
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                
+                // Check if the pasted content looks like markdown
+                if (pastedData.match(/^(#{1,6}\s|>\s|\*\s|\d+\.\s|\-\s|```|\[.*\]\(.*\)|\|.*\|)/m)) {
+                    // It looks like markdown, parse it
+                    const processedMarkdown = preprocessMarkdownForLoading(pastedData);
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = marked.parse(processedMarkdown);
+                    
+                    // Insert each child of the parsed markdown
+                    while (tempDiv.firstChild) {
+                        range.insertNode(tempDiv.firstChild);
+                        range.collapse(false);
+                    }
+                } else {
+                    // Regular text, insert as is
+                    const textNode = document.createTextNode(pastedData);
+                    range.insertNode(textNode);
+                    range.setStartAfter(textNode);
+                    range.setEndAfter(textNode);
+                }
+                
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+        triggerSave();
     });
 
     editor.addEventListener('click', (e) => {

@@ -76,6 +76,7 @@ body.modal-open {
     padding: 8px 0;
     color: var(--paper-8);
     font-size: var(--font-size-tagline);
+    cursor: pointer;
 }
 
 #stats-display {
@@ -100,7 +101,7 @@ body.modal-open {
     top: 32px;
     left: 0;
     right: 0;
-    bottom: 24px;
+    bottom: 8px;
     scrollbar-width: none;
 }
 
@@ -277,7 +278,26 @@ body.modal-open {
     font-size: var(--font-size-body);
     padding: 0.2em 0.4em;
     color: var(--red);
-    font-weight: 500;
+    background-color: var(--paper-2);
+    border-radius: 4px;
+}
+
+/* Markdown mode styles */
+#editor.markdown-mode {
+    font-family: var(--code);
+    background-color: var(--paper-2);
+    padding: 24px 24px 180px;
+}
+
+.markdown-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: var(--code);
+    font-size: var(--font-size-body);
+    line-height: 1.5;
+    color: var(--paper-11);
+    min-height: 100%;
+    outline: none;
 }
 
 #editor pre {
@@ -328,7 +348,7 @@ body.modal-open {
     left: 0;
     right: 0;
     margin: 0 auto;
-    bottom: 24px;
+    bottom: 8px;
 }
 
 .toolbar button {
@@ -629,7 +649,90 @@ body.modal-open {
     }
 
     #editor {
-        padding: 16px 12px 280px;
+        padding: 16px 12px 180px;
+    }
+
+    #editor.markdown-mode {
+        padding: 16px 12px 180px;
     }
 
 }
+
+@media screen and (max-width: 425px) {
+    #editor {
+        padding: 24px 12px 290px;
+    }
+
+    #editor.markdown-mode {
+        padding: 24px 12px 290px;
+    }
+
+    .toolbar {
+        gap: 16px 32px;
+    }
+}
+
+/* Clear data popover styles */
+.clear-data-popover {
+    position: fixed;
+    background-color: var(--paper-0);
+    border: 1px solid var(--paper-3);
+    border-radius: 16px;
+    box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.03);
+    padding: 16px;
+    width: 250px;
+    z-index: 1000;
+    max-width: 90vw;
+}
+
+.clear-data-popover.hidden {
+    display: none;
+}
+
+.clear-data-content h3 {
+    margin: 0 0 4px 0;
+    font-size: var(--font-size-body);
+    font-weight: 600;
+}
+
+.clear-data-content p {
+    margin: 0 0 12px 0;
+    font-size: var(--font-size-caption);
+    color: var(--paper-9);
+}
+
+.clear-data-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.clear-data-actions button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: var(--font-size-label);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#clear-data-cancel {
+    background-color: var(--paper-2);
+    border: 1px solid var(--paper-4);
+    color: var(--paper-10);
+}
+
+#clear-data-cancel:hover {
+    background-color: var(--paper-3);
+}
+
+#clear-data-confirm {
+    background-color: var(--red);
+    border: 1px solid var(--red);
+    color: white;
+}
+
+#clear-data-confirm:hover {
+    background-color: #b91c1c;
+}
+
+
