@@ -1,0 +1,4 @@
+:HL["/markdown/_next/static/chunks/0mxqt189e-~no.css","style"]
+:HL["/markdown/_next/static/chunks/0ag0a1~1ppf_0.css","style"]
+:HL["https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}},"staleTime":300,"buildId":"QykzzQykdJZc-j8Qb1qBh"}

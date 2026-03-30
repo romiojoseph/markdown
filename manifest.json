@@ -1,0 +1,16 @@
+{
+    "name": "Private Markdown Editor — No Cloud, No Trackers",
+    "short_name": "Markdown",
+    "description": "Write and preview markdown files entirely in your browser. Your documents never leave your device. No analytics, no cloud, no sign-up required.",
+    "start_url": "/markdown/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0c0a09",
+    "icons": [
+        {
+            "src": "/markdown/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}
